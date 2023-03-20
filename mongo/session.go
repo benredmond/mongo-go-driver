@@ -9,6 +9,7 @@ package mongo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -183,24 +184,29 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 	for {
 		err = s.StartTransaction(opts...)
 		if err != nil {
+			fmt.Printf("\nerror starting txn: %s\n", err)
 			return nil, err
 		}
 
 		res, err := fn(NewSessionContext(ctx, s))
 		if err != nil {
+			fmt.Printf("\nerror making ses ctx: %s\n", err)
 			if s.clientSession.TransactionRunning() {
 				// Wrap the user-provided Context in a new one that behaves like context.Background() for deadlines and
 				// cancellations, but forwards Value requests to the original one.
+				fmt.Printf("\naborting txn\n")
 				_ = s.AbortTransaction(internal.NewBackgroundContext(ctx))
 			}
 
 			select {
 			case <-timeout.C:
+				fmt.Printf("\ntimed out\n")
 				return nil, err
 			default:
 			}
 
 			if errorHasLabel(err, driver.TransientTransactionError) {
+				fmt.Printf("\ntransient txn err\n")
 				continue
 			}
 			return res, err
@@ -210,6 +216,7 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 		// with no error.
 		err = s.clientSession.CheckAbortTransaction()
 		if err != nil {
+			fmt.Printf("\ntxn intentionally aborted\n")
 			return res, nil
 		}
 
@@ -223,6 +230,7 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 		if ctx.Err() != nil {
 			// Wrap the user-provided Context in a new one that behaves like context.Background() for deadlines and
 			// cancellations, but forwards Value requests to the original one.
+			fmt.Printf("\naborting txn due to ctx err %s\n", ctx.Err())
 			_ = s.AbortTransaction(internal.NewBackgroundContext(ctx))
 			return nil, ctx.Err()
 		}
@@ -232,20 +240,25 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 			err = s.CommitTransaction(ctx)
 			// End when error is nil, as transaction has been committed.
 			if err == nil {
+				fmt.Printf("\nerror committing txn: %s\n", err)
 				return res, nil
 			}
 
 			select {
 			case <-timeout.C:
+				fmt.Printf("\timeout committing txn\n")
 				return res, err
 			default:
 			}
 
+			fmt.Printf("\ntxn commit err is: %s\n", err)
 			if cerr, ok := err.(CommandError); ok {
 				if cerr.HasErrorLabel(driver.UnknownTransactionCommitResult) && !cerr.IsMaxTimeMSExpiredError() {
+					fmt.Printf("\nunknown txn result\n")
 					continue
 				}
 				if cerr.HasErrorLabel(driver.TransientTransactionError) {
+					fmt.Printf("\ntransient commit err\n")
 					break CommitLoop
 				}
 			}
