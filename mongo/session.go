@@ -205,7 +205,7 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 			default:
 			}
 
-			if errorHasLabel(err, driver.TransientTransactionError) {
+			if errorHasLabel(err, driver.TransientTransactionError) && unwrap(err) != context.Canceled {
 				fmt.Printf("\ntransient txn err\n")
 				continue
 			}
