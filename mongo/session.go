@@ -191,6 +191,7 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 		res, err := fn(NewSessionContext(ctx, s))
 		if err != nil {
 			fmt.Printf("\nerror making ses ctx: %s\n", err)
+			fmt.Printf("\ntxn state: %s\n", s.clientSession.TransactionState.String())
 			if s.clientSession.TransactionRunning() {
 				// Wrap the user-provided Context in a new one that behaves like context.Background() for deadlines and
 				// cancellations, but forwards Value requests to the original one.
@@ -205,7 +206,7 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 			default:
 			}
 
-			if errorHasLabel(err, driver.TransientTransactionError) && unwrap(err) != context.Canceled {
+			if errorHasLabel(err, driver.TransientTransactionError) && !errors.Is(err, context.Canceled) {
 				fmt.Printf("\ntransient txn err\n")
 				continue
 			}
