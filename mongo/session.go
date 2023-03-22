@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -206,7 +207,7 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 			default:
 			}
 
-			if errorHasLabel(err, driver.TransientTransactionError) {
+			if errorHasLabel(err, driver.TransientTransactionError) || strings.Contains(err.Error(), "incomplete read of message header")	{
 				fmt.Printf("\ntransient txn err\n")
 				continue
 			}
