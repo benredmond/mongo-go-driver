@@ -192,9 +192,13 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 		if err != nil {
 			fmt.Printf("\nerror making ses ctx: %s\n", err)
 
-			cErr, ok := err.(CommandError)
-			if ok {
-				fmt.Printf("\nerror labels: %#v\n", cErr.Labels)
+			tmpErr := err
+			for ; tmpErr != nil; tmpErr = unwrap(tmpErr) {
+				cErr, ok := err.(CommandError)
+				if ok {
+					fmt.Printf("\nerror labels: %#v\n", cErr.Labels)
+					break
+				}
 			}
 
 			fmt.Printf("\ntxn state: %s\n", s.clientSession.TransactionState.String())
