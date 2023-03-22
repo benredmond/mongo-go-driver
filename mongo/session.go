@@ -207,8 +207,8 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 			default:
 			}
 
-			fmt.Println(strings.Contains(err.Error(), "context canceled"))
-			if errorHasLabel(err, driver.TransientTransactionError) || strings.Contains(err.Error(), "context canceled")	{
+			fmt.Println(strings.Contains(err.Error(), "incomplete read of message header"))
+			if errorHasLabel(err, driver.TransientTransactionError) || strings.Contains(err.Error(), "incomplete read of message header")	{
 				fmt.Printf("\ntransient txn err\n")
 				continue
 			}
