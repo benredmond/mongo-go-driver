@@ -192,12 +192,21 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 		res, err := fn(NewSessionContext(ctx, s))
 		if err != nil {
 			fmt.Printf("\nerror making ses ctx: %s\n", err)
+
+			cErr, ok := err.(CommandError)
+			if ok {
+				fmt.Printf("\nerror labels: %#v\n", cErr.Labels)
+			}
+
 			fmt.Printf("\ntxn state: %s\n", s.clientSession.TransactionState.String())
 			if s.clientSession.TransactionRunning() {
 				// Wrap the user-provided Context in a new one that behaves like context.Background() for deadlines and
 				// cancellations, but forwards Value requests to the original one.
 				fmt.Printf("\naborting txn\n")
-				_ = s.AbortTransaction(internal.NewBackgroundContext(ctx))
+				aborterr := s.AbortTransaction(internal.NewBackgroundContext(ctx))
+				if aborterr !=  nil {
+					fmt.Printf("\nerror aborting txn: %s\n", aborterr.Error())
+				}
 			}
 
 			select {
@@ -207,8 +216,7 @@ func (s *sessionImpl) WithTransaction(ctx context.Context, fn func(sessCtx Sessi
 			default:
 			}
 
-			fmt.Println(strings.Contains(err.Error(), "incomplete read of message header"))
-			if errorHasLabel(err, driver.TransientTransactionError) || strings.Contains(err.Error(), "incomplete read of message header")	{
+			if errorHasLabel(err, driver.TransientTransactionError)	{
 				fmt.Printf("\ntransient txn err\n")
 				continue
 			}
